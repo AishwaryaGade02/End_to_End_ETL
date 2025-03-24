@@ -4,8 +4,17 @@ import plotly.express as px
 from sqlalchemy import create_engine
 import os
 
-DB_CONNECTION = os.getenv("DB_CONNECTION", "postgresql://postgres:postgres@postgres:5432/finance_db")
-engine = create_engine(DB_CONNECTION)
+db_config = {
+    "user": "postgres",
+    "password": "postgres",
+    "host": "postgres",  # Docker service name from docker-compose.yml
+    "port": "5432",
+    "database": "finance_db"
+}
+
+engine = create_engine(
+    f"postgresql+psycopg2://{db_config['user']}:{db_config['password']}@{db_config['host']}:{db_config['port']}/{db_config['database']}"
+)
 
 st.title("Financial Data Dashboard")
 
@@ -24,7 +33,7 @@ def fetch_news_sentiment():
     return pd.read_sql(query,engine)
 
 stock_df = fetch_stock_prices(ticker)
-news_df = fetch_news_sentiment(ticker)
+news_df = fetch_news_sentiment()
 
 if not stock_df.empty:
     st.subheader(f"Stock Price Trends for {ticker}")

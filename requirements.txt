@@ -1,0 +1,15 @@
+# requirements.txt
+pandas
+requests
+#pyspark
+streamlit
+plotly
+transformers
+nltk
+sqlalchemy
+psycopg2-binary
+torch
+torchvision
+torchaudio
+tensorflow
+tf-keras

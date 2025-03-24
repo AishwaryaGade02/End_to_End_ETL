@@ -1,4 +1,5 @@
 from airflow import DAG
+from airflow.hooks.base import BaseHook
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.decorators import task
@@ -27,8 +28,10 @@ with DAG(dag_id='finance_etl_pipeline',
     
     @task()
     def extract_stock_data(ticker: str):
+        conn = BaseHook.get_connection("alpha_vantage_api")
+        api_key = conn.extra_dejson.get("api_key")
         http_hook = HttpHook(http_conn_id=ALPHA_VANTAGE_API_CONN_ID,method='GET')
-        response = http_hook.run(f'/query?function=TIME_SERIES_DAILY&symbol={ticker}&apikey=1H1158KAOL8354HJ')
+        response = http_hook.run(f'/query?function=TIME_SERIES_DAILY&symbol={ticker}&apikey={api_key}')
         data = response.json().get('Time Series (Daily)', {})
 
         if not data:
@@ -42,14 +45,18 @@ with DAG(dag_id='finance_etl_pipeline',
     
     @task()
     def extract_news_sentiment(ticker: str):
+        conn = BaseHook.get_connection("news_api")
+        api_key = conn.extra_dejson.get("api_key")
         http_hook = HttpHook(http_conn_id = NEWS_API_CONN_ID, method='GET')
-        response = http_hook.run(f'/v2/everything?q={ticker}&apiKey=6bd48dee9c0e438a86ebced4fdc74922')
+        response = http_hook.run(f'/v2/everything?q={ticker}&apiKey={api_key}')
         articles = response.json().get('articles',[])
 
         if not articles:
             raise ValueError("No articles received from API")
-        
+    
         news_df = pd.DataFrame(articles)[["title","content"]]
+    
+    # Move model initialization here so it only happens during task execution
         sentiment_model = pipeline("sentiment-analysis",model="ProsusAI/finbert")
         news_df['sentiment'] = news_df['content'].apply(
             lambda x: sentiment_model(x[:200])[0]['label'] if pd.notnull(x) else 'neutral'
